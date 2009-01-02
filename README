@@ -1,0 +1,66 @@
+Vimmpc README
+=============
+
+.04 April 2007: Vimmpc 20070410 Released!
+************************************************************************
+Please see the header of vimmpc.vim for changes!
+
+This is the latest release of vimmpc.
+************************************************************************
+
+About
+-----
+Vimmpc provides functionality for manipulating http://www.musicpd.org/[MPD]
+from within the http:://www.vim.org/[Vim] editor.
+
+Download
+--------
+- link:vimmpc-20070410.tar.gz[]::
+  A tarball distribution of the latest version of vimmpc.
+
+Dependencies
+------------
+The following dependencies are required to use vimmpc:
+
+- Vim 7.0+ (http://www.vim.org/[])
+- Python 2.4+ (http://www.python.org/[])
+- mpdclient2.py (http://svn.navi.cx/misc/trunk/python/bemused/mpdclient2.py[])
+
+Installation
+------------
+[subs="normal"]
+  $ tar xzf vimmpc-(revision).tar.gz
+  $ cd ~/.vim/plugin
+  $ ln -s /path/to/vimmpc/vimmpc.vim
+  $ ln -s /path/to/vimmpc/vimmpc.py
+
+And finally:
+
+[subs="normal"]
+  $ vim -c 'MPC'
+
+To complete the installation and launch Vim with MPC loaded.
+
+NOTE: Vim can be loaded as normal and vimmpc activated by use of :MPC
+
+Screenshots
+-----------
+Here is a screenshot of vimmpc in action:
+
+image:screenshots/1.png["Playlist"]
+
+Development
+-----------
+The development version can be checked out directly from the subversion
+repository http://svn.brokentrain.net/vimmpc/trunk[] or viewed directly
+online at http://svn.brokentrain.net/vimmpc/trunk[].
+
+Contact
+-------
+Please direct any questions, comments, patches, bugs to:
+mailto:gavin@brokentrain.net[]
+
+COPYING
+-------
+Copyright (C) 2006-2007 Gavin Gilmour. Free use of this software is granted
+under the terms of the GNU General Public License (GPL).
