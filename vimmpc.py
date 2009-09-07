@@ -2,9 +2,10 @@
 # File: vimmpc.py
 # About: Wrapper around basic MPD functionality
 # Author: Gavin Gilmour (gavin (at) brokentrain dot net)
-# Last Modified: April 10, 2007
+# Last Modified: September 07, 2009
 # Version: 20070410
 # Note: Please see the accompanying README.
+
 
 from __future__ import division
 
@@ -16,9 +17,7 @@ import time
 from time import gmtime, strftime
 
 import vim
-import mpdclient2
-
-from SOAPpy import WSDL
+import mpd
 
 DEBUG = False
 BUFFERS = {}
@@ -31,23 +30,6 @@ def output(msg):
     print "[%s] %s" % (strftime("%m/%d/%y %H:%M:%S", gmtime()), msg)
 
 class MPC:
-
-    class Lyrics:
-
-        def __init__(self):
-            self.proxy = WSDL.Proxy('http://lyricwiki.org/server.php?wsdl')
-
-        def getLyrics(self):
-            track = mpdclient2.connect().currentsong()
-            artist = track['artist']
-            title = track['title']
-
-            if artist and title:
-                if self.proxy.checkSongExists(artist, title):
-                    info = self.proxy.getSong(artist, title)
-                    return info['lyrics']
-
-            return
 
     class ProgressBar:
         def __init__(self, minValue = 0, maxValue = 100, totalWidth=80):
@@ -104,11 +86,12 @@ class MPC:
         self.track = {}
         self.status = {}
         self.regex = re.compile(r'#(\d+).*')
-        self.lyrics = self.Lyrics()
         self.stopAfterPlaying = False
+        self.mpd = mpd.MPDClient()
+        self.mpd.connect("localhost", 6600)
 
     def readPlaylist(self):
-        self.playlist = mpdclient2.connect().playlistinfo()
+        self.playlist = self.mpd.playlistinfo()
 
     def checkForChange(self):
 
@@ -128,7 +111,7 @@ class MPC:
 
     def clearPlaylist(self, mpd=False):
         if mpd:
-            mpdclient2.connect().clear()
+            self.mpd.clear()
 
         self.buffer[:] = None
         self.drawBanner()
@@ -180,7 +163,7 @@ class MPC:
         self.originalbuffer = self.buffer[:]
 
     def drawBanner(self):
-        conn = mpdclient2.connect()
+        conn = self.mpd
         self.buffer[-1] = "Playlist length: %s" % conn.status()['playlist']
         if conn.status().has_key('time'):
             self.buffer.append("Total time: %s" % conn.status()['time'])
@@ -244,12 +227,12 @@ class MPC:
     def playSelection(self):
         id = self.getFocusId()
         if id:
-            mpdclient2.connect().playid(int(id))
+            self.mpd.playid(int(id))
             self.highlightCurrent()
 
     def highlightCurrent(self):
         try:
-            id = mpdclient2.connect().currentsong()['id']
+            id = self.mpd.currentsong()['id']
             vim.command("match none")
             vim.command("call search('^#%s)', 'w')" % id)
             vim.command("exe 'match Visual /^#%s.*/'" % id)
@@ -278,23 +261,23 @@ class MPC:
     def playPause(self):
         self.getTrackInfo()
         if self.status['state'] == 'stop' or self.status['state'] == 'pause':
-            mpdclient2.connect().play()
+            self.mpd.play()
         elif self.status['state'] == 'play':
-            mpdclient2.connect().pause(1)
+            self.mpd.pause(1)
 
     def stop(self):
-        mpdclient2.connect().stop()
+        self.mpd.stop()
 
     def next(self):
-        mpdclient2.connect().next()
+        self.mpd.next()
         self.highlightCurrent()
 
     def prev(self):
-        mpdclient2.connect().previous()
+        self.mpd.previous()
         self.highlightCurrent()
 
     def update(self):
-        mpdclient2.connect().update()
+        self.mpd.update()
         output("Updating database..")
 
     def enqueueTrack(self):
@@ -303,12 +286,12 @@ class MPC:
         cursor_row, cursor_col = window.cursor
         current_line = buffer[cursor_row-1]
 
-        filename = mpdclient2.connect().find('title', current_line)
+        filename = self.mpd.find('title', current_line)
 
         if not filename:
-            filename = mpdclient2.connect().find('file', current_line)
+            filename = self.mpd.find('file', current_line)
 
-        mpdclient2.connect().add(filename[0]['file'])
+        self.mpd.add(filename[0]['file'])
         output("Added %s to playlist" % filename[0]['file'])
 
     def showDatabase(self):
@@ -318,9 +301,9 @@ class MPC:
 
         if not exists:
             buffer = vim.current.buffer
-            for entry in mpdclient2.connect().lsinfo():
+            for entry in self.mpd.lsinfo():
                 folder = entry['directory']
-                tracks = mpdclient2.connect().listallinfo(entry['directory'])
+                tracks = self.mpd.listallinfo(entry['directory'])
                 buffer.append("{{{ %s" % folder)
                 for track in tracks:
                     if track['type'] == 'file':
@@ -339,39 +322,13 @@ class MPC:
             vim.command('silent! bdelete! ' + filename)
             MPC_removeBuffer(filename)
 
-    def showLyrics(self):
-        filename = "Lyrics"
-        exists = MPC_createBuffer(filename, lyrics_type, 
-                lyrics_direction, lyrics_size, "lyrics")
-
-        if not exists:
-            lyrics = self.lyrics.getLyrics()
-
-            if lyrics:
-                debug("Opening lyrics buffer for '%s'" % filename)
-                buffer = vim.current.buffer
-                for line in lyrics.split('\n'):
-                    buffer.append(line)
-                vim.command("silent! wincmd w")
-            else:
-                vim.command('au! BufDelete ' + filename)
-                vim.command('silent! bdelete! ' + filename)
-                MPC_removeBuffer(filename)
-                output("No lyrics found!")
-        else:
-            debug("Closing '%s'" % filename)
-            mpc = MPC_lookupBuffer(filename)
-            vim.command('au! BufDelete ' + filename)
-            vim.command('silent! bdelete! ' + filename)
-            MPC_removeBuffer(filename)
-
     def toggleShuffle(self):
         self.getTrackInfo()
         if self.status['random']:
-            mpdclient2.connect().random(0)
+            self.mpd.random(0)
             output("Random off")
         else:
-            mpdclient2.connect().random(1)
+            self.mpd.random(1)
             output("Random on")
 
     def toggleStopAfterPlaying(self):
@@ -385,16 +342,16 @@ class MPC:
     def toggleRepeat(self):
         self.getTrackInfo()
         if self.status['repeat']:
-            mpdclient2.connect().repeat(0)
+            self.mpd.repeat(0)
             output("Repeat off")
         else:
-            mpdclient2.connect().repeat(1)
+            self.mpd.repeat(1)
             output("Repeat on")
 
     def showInfo(self):
         id = self.getFocusId()
         if id:
-            output(mpdclient2.connect().playlistid(int(id)))
+            output(self.mpd.playlistid(int(id)))
 
     def updatePlaylist(self):
         self.clearPlaylist()
@@ -402,7 +359,7 @@ class MPC:
         self.displayPlaylist()
 
     def getTrackInfo(self):
-        conn = mpdclient2.connect()
+        conn = self.mpd
         conn_status = conn.status()
         self.status = {
                 'state' : conn_status['state'],
@@ -415,7 +372,7 @@ class MPC:
         self.track = conn.currentsong()
 
     def getCurrentTrack(self):
-        conn = mpdclient2.connect()
+        conn = self.mpd
         return conn.currentsong()
 
 
@@ -443,13 +400,7 @@ def MPC_createBuffer(filename, type, direction, size, name):
             vim.command("silent! setlocal winfixheight")
 
             # Special considerations for lyrics window
-            if name == "lyrics":
-                vim.command("silent! setlocal bufhidden=delete")
-                vim.command("silent! setlocal titlestring=Lyrics")
-                vim.command("silent! setlocal tw=50")
-
-            # Special considerations database window
-            elif name == "database":
+            if name == "database":
                 vim.command("silent! setlocal bufhidden=delete")
                 vim.command("silent! setlocal titlestring=Database")
                 vim.command("silent! setlocal tw=50")
@@ -531,10 +482,6 @@ def MPC_createBuffer(filename, type, direction, size, name):
 #                         (diff_key, filename))
 
                 vim.command('nnoremap <buffer> <silent> %s :python \
-                        MPC_lookupBuffer("%s").showLyrics()<CR>' % 
-                         (show_lyrics_key, filename))
-
-                vim.command('nnoremap <buffer> <silent> %s :python \
                         MPC_lookupBuffer("%s").showDatabase()<CR>' % 
                          (show_database_key, filename))
 
@@ -609,7 +556,6 @@ focus_current_track_key = MPC_setVariable("g:mpc_focus_current_track_key", "<C-L
 show_info_key = MPC_setVariable("g:mpc_show_info_key", "<C-I>")
 refresh_playlist_key = MPC_setVariable("g:mpc_refresh_playlist_key", "<C-R>")
 clear_playlist_key = MPC_setVariable("g:mpc_clear_playlist_key", "c")
-show_lyrics_key = MPC_setVariable("g:mpc_show_lyrics_key", "<C-H>")
 show_database_key = MPC_setVariable("g:mpc_show_database_key", "<C-D>")
 
 # Database
@@ -618,10 +564,6 @@ show_database_key = MPC_setVariable("g:mpc_show_database_key", "<C-D>")
 playlist_size = MPC_setVariable("g:mpc_playlist_size", "10")
 playlist_direction = MPC_setVariable("g:mpc_playlist_direction", "split")
 playlist_type = MPC_setVariable("g:mpc_playlist_type", "new") # :help opening-window
-
-lyrics_size = MPC_setVariable("g:mpc_lyrics_size", "50")
-lyrics_direction = MPC_setVariable("g:mpc_lyrics_direction", "vsplit")
-lyrics_type = MPC_setVariable("g:mpc_lyrics_type", "botright") # :help opening-window
 
 database_size = MPC_setVariable("g:mpc_database_size", "30")
 database_direction = MPC_setVariable("g:mpc_database_direction", "vsplit")
