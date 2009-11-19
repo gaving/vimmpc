@@ -51,16 +51,14 @@ image:screenshots/1.png["Playlist"]
 
 Development
 -----------
-The development version can be checked out directly from the subversion
-repository http://svn.brokentrain.net/vimmpc/trunk[] or viewed directly
-online at http://svn.brokentrain.net/vimmpc/trunk[].
+The development version can be viewed on github:
+http://github.com/gaving/vimmpc/[].
 
-Contact
--------
-Please direct any questions, comments, patches, bugs to:
-mailto:gavin@brokentrain.net[]
+Please note that development is currently stalled just now due to an expired
+interest on my part. Anyone wishing to maintain it please feel free.
 
-COPYING
--------
-Copyright (C) 2006-2007 Gavin Gilmour. Free use of this software is granted
-under the terms of the GNU General Public License (GPL).
+TODO
+----
+
+All the mpdclient2 stuff should be ripped out in favour of py-mpd amongst loads
+of other fixes and tweaks.
