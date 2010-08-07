@@ -1,7 +1,7 @@
 # Vimmpc
 
 Vimmpc provides functionality for manipulating [mpd](http://www.musicpd.org/)
-from within the (vim)(http://www.vim.org/) editor.
+from within the [vim](http://www.vim.org/) editor.
 
 ## Dependencies
 
